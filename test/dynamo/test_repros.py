@@ -805,10 +805,9 @@ class ReproTests(torch._dynamo.test_case.TestCase):
         )
 
         self.assertGreaterEqual(torch._dynamo.utils.counters["frames"]["ok"], 3)
-        # Graph break because of dynamic slicing
         self.assertEqual(
             torch._dynamo.utils.counters["frames"]["total"],
-            torch._dynamo.utils.counters["frames"]["ok"] + 1,
+            torch._dynamo.utils.counters["frames"]["ok"],
         )
 
     @patch.object(torch._dynamo.config, "fake_tensor_propagation", True)
@@ -1389,7 +1388,6 @@ class ReproTests(torch._dynamo.test_case.TestCase):
         self.assertTrue(same(ref1, res1))
 
     @unittest.skipIf(not HAS_REFS, "requires recent PT version")
-    @unittest.expectedFailure
     def test_primtorch(self):
         @torch._dynamo.optimize("eager", nopython=True)
         def fn(x):

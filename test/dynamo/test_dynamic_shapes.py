@@ -78,32 +78,20 @@ unittest.expectedFailure(
     # RuntimeError: aten.allclose.default - couldn't find symbolic meta function/decomposition
 )
 
-# DynamicShapesMiscTests
+# DynamicShapesExportTests
 unittest.expectedFailure(
-    DynamicShapesMiscTests.test_unsupported_fake_tensor_dynamic_shapes
-    # aten.quantize_per_tensor.default - couldn't find symbolic meta function/decomposition
+    DynamicShapesExportTests.test_export_with_constant_list_nonzero_dynamic_shapes
+)
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_list_nonzero_free_function_dynamic_shapes
+)
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_tuple_nonzero_dynamic_shapes
+)
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_tuple_nonzero_dynamic_shapes
 )
 
-# DynamicShapesExportTests
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_list_nonzero_dynamic_shapes
-)
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_list_nonzero_free_function_dynamic_shapes
-)
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_tuple_nonzero_dynamic_shapes
-)
-# DynamicShapesExportTests
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_list_nonzero_dynamic_shapes
-)
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_list_nonzero_free_function_dynamic_shapes
-)
-unittest.expectedFailure(
-    DynamicShapesExportTests.test_export_with_constant_tuple_nonzero_dynamic_shapes
-)
 
 # DynamicShapesSubGraphTests
 unittest.expectedFailure(

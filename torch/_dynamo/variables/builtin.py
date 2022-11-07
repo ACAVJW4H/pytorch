@@ -230,7 +230,7 @@ class BuiltinVariable(VariableTracker):
     def call_function(
         self, tx, args: "List[VariableTracker]", kwargs: "Dict[str, VariableTracker]"
     ) -> "VariableTracker":
-        # print("CALLING BUILTIN", self.fn, args)
+        print("CALLING BUILTIN", self.fn, args)
         constant_args = check_constant_args(args, kwargs)
         tensor_args = self.tensor_args(*args, **kwargs)
         unspec_python_args = self.unspec_python_args(*args, **kwargs)
@@ -256,16 +256,6 @@ class BuiltinVariable(VariableTracker):
         ):
             tensor_args = False
             args, kwargs = specialize_args_kwargs(tx, args, kwargs)
-
-        # if (
-        #     self.can_insert_in_graph()
-        #     and tensor_args
-        #     and not (
-        #         self.fn is operator.getitem
-        #         and isinstance(args[0], ConstDictVariable)
-        #         and isinstance(args[1], variables.TupleVariable)
-        #     )
-        # ):
 
         if (
             self.can_insert_in_graph()
@@ -562,68 +552,21 @@ class BuiltinVariable(VariableTracker):
             ]
             return variables.TupleVariable(items, **options)
 
-    def _call_operator_builtin(self, tx, op_name: str, *args, **kwargs):
-        options = VariableTracker.propagate(self, args)
-        fn_ = getattr(operator, op_name)
-
-        # This should really be refactored.
-        # builtins like + and - can return a ton of different types,
-        # depending on the types of the inputs.
-        # Right now, TensorVariable.create() handles a subset of these cases,
-        # but not all of them.
-        # For example, different cases that we care about include
-        # when the output type is a:
-        # - ConstantVariable (handled by ConstantVariable.call_method)
-        # - DynamicShapesVariable (handled by TensorVariable.create)
-        # - TensorVariable (handled by TensorVariable.create)
-        if all(isinstance(x, variables.ConstantVariable) for x in args):
-            return args[0].call_method(tx, f'__{op_name}__', args[1:], kwargs)
-
-        out = TensorVariable.create(
-            tx=tx,
-            proxy=tx.output.create_proxy(
-                "call_function",
-                fn_,
-                *proxy_args_kwargs(args, kwargs),
-                current_tx=tx,
-            ),
-            **options,
-        )
-        return out
-
-    def call_mul(self, tx, a, b):
-        if isinstance(
-            a, (variables.ListVariable, variables.TupleVariable)
-        ) and isinstance(b, variables.ConstantVariable):
-            return a.__class__(
-                items=a.items * b.as_python_constant(), mutable_local=MutableLocal()
-            ).add_options(self, a, b)
-        elif isinstance(
-            b, (variables.ListVariable, variables.TupleVariable)
-        ) and isinstance(a, variables.ConstantVariable):
-            return b.__class__(
-                items=b.items * a.as_python_constant(), mutable_local=MutableLocal()
-            ).add_options(self, a, b)
-        else:
-            return self._call_operator_builtin(tx, "mul", a, b)
 
     def call_len(self, tx, *args, **kwargs):
         return args[0].call_method(tx, "__len__", args[1:], kwargs)
 
     def call_add(self, tx, *args, **kwargs):
-        # Important: we want to trace operator.add(x, y) into the graph,
-        # not x.__add__(y).
-        # operator.add will automatically handle NotImplemented argument swizzling.
-        return self._call_operator_builtin(tx, "add", *args, *kwargs)
+        return args[0].call_method(tx, "__add__", args[1:], kwargs)
 
     def call_sub(self, tx, *args, **kwargs):
-        return self._call_operator_builtin(tx, "sub", *args, *kwargs)
+        return args[0].call_method(tx, "__sub__", args[1:], kwargs)
 
     def call_truediv(self, tx, *args, **kwargs):
-        return self._call_operator_builtin(tx, "truediv", *args, *kwargs)
+        return args[0].call_method(tx, "__truediv__", args[1:], kwargs)
 
     def call_floordiv(self, tx, *args, **kwargs):
-        return self._call_operator_builtin(tx, "floordiv", *args, *kwargs)
+        return args[0].call_method(tx, "__floordiv__", args[1:], kwargs)
 
     def call_iadd(self, tx, *args, **kwargs):
         return args[0].call_method(tx, "__iadd__", args[1:], kwargs)
