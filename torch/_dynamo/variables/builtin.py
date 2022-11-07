@@ -552,6 +552,21 @@ class BuiltinVariable(VariableTracker):
             ]
             return variables.TupleVariable(items, **options)
 
+    def call_mul(self, tx, a, b):
+        if isinstance(
+            a, (variables.ListVariable, variables.TupleVariable)
+        ) and isinstance(b, variables.ConstantVariable):
+            return a.__class__(
+                items=a.items * b.as_python_constant(), mutable_local=MutableLocal()
+            ).add_options(self, a, b)
+        elif isinstance(
+            b, (variables.ListVariable, variables.TupleVariable)
+        ) and isinstance(a, variables.ConstantVariable):
+            return b.__class__(
+                items=b.items * a.as_python_constant(), mutable_local=MutableLocal()
+            ).add_options(self, a, b)
+        else:
+            return a.call_method(tx, "__mul__", [b], {})
 
     def call_len(self, tx, *args, **kwargs):
         return args[0].call_method(tx, "__len__", args[1:], kwargs)
