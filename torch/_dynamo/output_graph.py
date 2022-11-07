@@ -449,7 +449,7 @@ class OutputGraph(fx.Tracer):
             assert callable(compiled_fn), "compiler_fn did not return callable"
         except Exception as e:
             compiled_fn = gm.forward
-            raise
+            raise BackendCompilerFailed(self.compiler_fn, e) from e
         return compiled_fn
 
     def example_inputs(self):

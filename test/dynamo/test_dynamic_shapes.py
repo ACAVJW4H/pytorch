@@ -74,11 +74,6 @@ unittest.expectedFailure(
 )
 
 unittest.expectedFailure(
-    DynamicShapesReproTests.test_reformer_sorting_dynamic_shapes
-    # Unable to cast Python instance to C++ type
-)
-
-unittest.expectedFailure(
     DynamicShapesReproTests.test_guard_fail_tensor_bool_dynamic_shapes
     # RuntimeError: aten.allclose.default - couldn't find symbolic meta function/decomposition
 )
@@ -89,6 +84,16 @@ unittest.expectedFailure(
     # aten.quantize_per_tensor.default - couldn't find symbolic meta function/decomposition
 )
 
+# DynamicShapesExportTests
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_list_nonzero_dynamic_shapes
+)
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_list_nonzero_free_function_dynamic_shapes
+)
+unittest.expectedFailure(
+    DynamicShapesExportTests.test_export_with_constant_tuple_nonzero_dynamic_shapes
+)
 # DynamicShapesExportTests
 unittest.expectedFailure(
     DynamicShapesExportTests.test_export_with_constant_list_nonzero_dynamic_shapes

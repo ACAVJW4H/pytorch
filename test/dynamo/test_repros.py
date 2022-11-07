@@ -963,7 +963,7 @@ class ReproTests(torch._dynamo.test_case.TestCase):
 
         self.assertEqual(cnt.frame_count, ifdyn(3, 2))
         # TODO(jansel): figure out why op count depends on imports
-        self.assertIn(cnt.op_count, (36, 35, 29, 28))
+        self.assertIn(cnt.op_count, (36, 35, 34, 29, 28))
 
     # see: https://github.com/pytorch/pytorch/issues/80067
     @patch.object(torch._dynamo.config, "fake_tensor_propagation", False)
@@ -982,7 +982,7 @@ class ReproTests(torch._dynamo.test_case.TestCase):
 
         self.assertEqual(cnt.frame_count, ifdyn(5, 4))
         # TODO(jansel): figure out why op count depends on imports
-        self.assertIn(cnt.op_count, (31, 36, 35, 29, 28))
+        self.assertIn(cnt.op_count, (31, 36, 35, 34, 29, 28))
 
     def test_hf_model_output(self):
         ex = ModelOutput(a=torch.randn(10), b=torch.randn(10), c=torch.randn(10))
