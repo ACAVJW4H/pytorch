@@ -221,10 +221,10 @@ class C10_CUDA_API CUDAKernelLaunchRegistry {
   static CUDAKernelLaunchRegistry& get_singleton_ref();
   /// Number of GPUs I've interacted with
   int gpus_interacted_with() const;
-  /// Whether or not to gather stack traces when launching kernels
-  bool gather_launch_stacktrace = false;
   /// If not all devices support DSA, we disable it
   const bool do_all_devices_support_managed_memory = false;
+  /// Whether or not to gather stack traces when launching kernels
+  bool gather_launch_stacktrace = false;
   /// Whether or not host-side DSA is enabled or disabled at run-time
   /// Device-side code cannot be adjusted at run-time
   bool enabled = false;

@@ -371,7 +371,7 @@ bool CUDAKernelLaunchRegistry::has_failed() const {
 bool CUDAKernelLaunchRegistry::is_enabled() const {
 #ifdef TORCH_USE_CUDA_DSA
   return enabled && do_all_devices_support_managed_memory;
-else
+#else
   return false;
 #endif
 }
