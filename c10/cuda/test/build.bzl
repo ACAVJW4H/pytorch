@@ -8,8 +8,6 @@ dsa_tests = [
     "impl/CUDAAssertionsTest_multiple_writes_from_same_block.cu",
 ]
 
-
-
 def define_targets(rules):
     rules.cc_test(
         name = "test",
@@ -26,7 +24,7 @@ def define_targets(rules):
     for src in tests:
         name = src.replace("impl/", "").replace(".cu", "")
         rules.cuda_library(
-            name = f"test_{name}_lib",
+            name = "test_" + name + "_lib",
             srcs = [
                 src,
             ],
@@ -37,8 +35,8 @@ def define_targets(rules):
             target_compatible_with = rules.requires_cuda_enabled(),
         )
         rules.cc_test(
-            name = f"test_{name}",
+            name = "test_" + name,
             deps = [
-                f":test_{name}_lib"
+                ":test_" + name + "_lib"
             ]
         )
