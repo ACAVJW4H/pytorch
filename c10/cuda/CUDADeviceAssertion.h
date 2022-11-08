@@ -12,16 +12,10 @@ static __device__ void dstrcpy(char* const dst, const char* const src) {
   int i = 0;
   // Copy string from source to destination, ensuring that it
   // isn't longer than `C10_CUDA_DSA_MAX_STR_LEN-1`
-  for (; src[i] != '\0' && i < C10_CUDA_DSA_MAX_STR_LEN - 1; i++) {
-    dst[i] = src[i];
+  while (*src != '\0' && i++ < C10_CUDA_DSA_MAX_STR_LEN - 1) {
+    *dst++ = *src++;
   }
-  // If the loop terminated before `i` meets the condition below, then
-  // `dst` ends with a null-terminator from `src`. Otherwise, the loop
-  // reached maximum iterations and we add our own null-terminator to
-  // `dst`
-  if (i == C10_CUDA_DSA_MAX_STR_LEN - 1) {
-    *dst = '\0';
-  }
+  *dst = '\0';
 }
 
 __device__ __noinline__ void dsa_add_new_assertion_failure(

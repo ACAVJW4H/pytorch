@@ -82,10 +82,8 @@ class C10_CUDA_API CUDAError : public c10::Error {
 
 /// Number of assertion failure messages we can store. If this is too small
 /// threads will fail silently.
-// We use a preprocessor macro here so the value will also be available in
-// the CUDA code.
-#define C10_CUDA_DSA_ASSERTION_COUNT 10
-#define C10_CUDA_DSA_MAX_STR_LEN 512
+constexpr int C10_CUDA_DSA_ASSERTION_COUNT = 10;
+constexpr int C10_CUDA_DSA_MAX_STR_LEN = 512;
 
 namespace c10 {
 namespace cuda {
