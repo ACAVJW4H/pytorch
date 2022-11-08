@@ -614,7 +614,7 @@ class CppKernel(Kernel):
         )
         reductions.mark_reduction(self.reduction_vars)
 
-        if config.cpp.simdlen:
+        if codecache.pick_vec_isa():
             # TODO(jansel): detect stride-1 dimension and vectorize that
             if reductions:
                 reductions.loops[-1].simd = True
@@ -705,7 +705,8 @@ class CppVecKernel(CppKernel):
 
     def __init__(self, args, num_threads):
         super(CppVecKernel, self).__init__(args, num_threads)
-        self.simd_len = config.cpp.simdlen
+        assert codecache.pick_vec_isa()
+        self.simd_len = codecache.pick_vec_isa().nelements()
         self.reduction_omp_dec: Dict[str, str] = {}
         metrics.generated_cpp_vec_kernel_count += 1
 
@@ -722,7 +723,7 @@ class CppVecKernel(CppKernel):
     def transform_index(self, index: sympy.Expr):
         expanded_index = sympy.expand(index)
         assert self.simd_len
-        assert self.simd_len > 0
+        assert self.simd_len >= 1
         most_inner_var = self.itervars[-1]
         replacement = {most_inner_var: most_inner_var * self.simd_len}
         new_index = sympy_subs(expanded_index, replacement)
@@ -946,20 +947,22 @@ class CppKernelProxy(CppKernel):
         self.simd_vec_kernel: CppVecKernel = None
         self.simd_omp_kernel: CppKernel = None
 
-    def vectorize_most_inner_loop(self, loop_nest):
-        loop_nest.split_most_inner_loop(config.cpp.simdlen)
+    def vectorize_most_inner_loop(self, loop_nest, dtype=torch.float):
+        assert codecache.pick_vec_isa()
+        nelements = codecache.pick_vec_isa().nelements(dtype)
+        loop_nest.split_most_inner_loop(nelements)
         loop_with_tail = loop_nest.loops[-1]
         assert isinstance(loop_with_tail, LoopLevelWithTail)
 
         loop_with_tail.main_loop.simd_vec = True
 
         loop_with_tail.tail_loop.simd_omp = True
-        # We chope the loop into two cubes by the config.cpp.simdlen - main loop and tail loop.
+        # We chope the loop into two cubes by the nelements - main loop and tail loop.
         # Regarding the main loop, it is straightforward that it could be vectorized with
-        # config.cpp.simdlen. But for the tail loop, it still could be vectorized. For example,
-        # if the config.cpp.simdlen is 8(256bits), then the tail loop still could be vectorized
+        # nelements. But for the tail loop, it still could be vectorized. For example,
+        # if the nelements is 8(256bits), then the tail loop still could be vectorized
         # as 4(128bits).
-        loop_with_tail.tail_loop.simd_len = int(config.cpp.simdlen / 2)
+        loop_with_tail.tail_loop.simd_len = int(nelements / 2)
         loop_with_tail.tail_loop.simd_vec = False
 
         loop_with_tail.main_loop_body = self.simd_vec_kernel
@@ -991,7 +994,7 @@ class CppKernelProxy(CppKernel):
         ), LoopNest(loops[reduction_depth:])
         loops_nest_reduce.mark_reduction(self.simd_vec_kernel.reduction_vars)
 
-        if config.cpp.simdlen:
+        if codecache.pick_vec_isa():
             # TODO(jansel): detect stride-1 dimension and vectorize that
             if loops_nest_reduce:
                 loops_nest_reduce.loops[-1].simd = True
@@ -1136,8 +1139,7 @@ class CppScheduling:
         return cls.can_fuse_horizontal(node1, node2) and not node1.is_reduction()
 
     def can_vec(self, nodes):
-        # TODO: Query cpu arch and vec length from aten
-        if not codecache.supported_vector_isa():
+        if not codecache.pick_vec_isa():
             return False
 
         _, (group, reduction_group) = max(
@@ -1347,7 +1349,9 @@ class LoopLevel:
     steps: sympy.Expr = sympy.Integer(1)
     parallel: int = 0
     simd_omp: bool = False
-    simd_len: int = config.cpp.simdlen
+    simd_len: int = (
+        codecache.pick_vec_isa().nelements() if codecache.pick_vec_isa() else 0
+    )
     simd_vec: bool = False
     collapsed: bool = False
     reduction_vars: Dict[str, str] = None
@@ -1361,7 +1365,11 @@ class LoopLevel:
             )
         else:
             reduction = ""
-        simd = f"simd simdlen({self.simd_len}) " if self.simd_omp else ""
+        simd = (
+            f"simd simdlen({self.simd_len}) "
+            if self.simd_omp and self.simd_len > 1
+            else ""
+        )
         if self.parallel:
             # TODO(jansel): look into chunk size and other schedules
             line1 = f"#pragma omp for{reduction} "

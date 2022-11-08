@@ -4390,7 +4390,57 @@ if HAS_CPU:
             self.assertFalse(complex_memory_overlap(gathered.t()))
 
         @unittest.skipIf(
-            not codecache.get_cpu_proc_info(), "Does not support vectorization"
+            not codecache.valid_vec_isa(), "Does not support vectorization"
+        )
+        @patch("torch.cuda.is_available", lambda: False)
+        def test_auto_simd(self):
+            vec_avx512 = codecache.supported_vec_isa[0]
+            vec_avx2 = codecache.supported_vec_isa[1]
+            self.assertTrue(vec_avx512.bit_width() == 512)
+            self.assertTrue(vec_avx2.bit_width() == 256)
+            self.assertTrue(vec_avx512.nelements() == 16)
+            self.assertTrue(vec_avx2.nelements() == 8)
+            self.assertTrue(vec_avx512.nelements(torch.bfloat16) == 32)
+            self.assertTrue(vec_avx2.nelements(torch.bfloat16) == 16)
+
+            with patch.object(config.cpp, "simdlen", None):
+                isa = codecache.pick_vec_isa()
+                if vec_avx512 in codecache.valid_vec_isa():
+                    self.assertTrue(isa == vec_avx512)
+                else:
+                    self.assertTrue(isa == vec_avx2)
+
+            with patch.object(config.cpp, "simdlen", 0):
+                isa = codecache.pick_vec_isa()
+                self.assertFalse(isa)
+
+            with patch.object(config.cpp, "simdlen", 1):
+                isa = codecache.pick_vec_isa()
+                self.assertFalse(isa)
+
+            with patch.object(config.cpp, "simdlen", 257):
+                isa = codecache.pick_vec_isa()
+                self.assertFalse(isa)
+
+            with patch.object(config.cpp, "simdlen", 513):
+                isa_list = codecache.valid_vec_isa()
+                if vec_avx512 in isa_list:
+                    self.assertFalse(isa)
+
+            with patch.object(config.cpp, "simdlen", 512):
+                isa_list = codecache.valid_vec_isa()
+                if vec_avx512 in isa_list:
+                    isa = codecache.pick_vec_isa()
+                    self.assertTrue(isa == vec_avx512)
+
+            with patch.object(config.cpp, "simdlen", 256):
+                isa_list = codecache.valid_vec_isa()
+                if vec_avx2 in isa_list:
+                    isa = codecache.pick_vec_isa()
+                    self.assertTrue(isa == vec_avx2)
+
+        @unittest.skipIf(
+            not codecache.valid_vec_isa(), "Does not support vectorization"
         )
         @patch("torch.cuda.is_available", lambda: False)
         def test_sign_cpu_only(self):
@@ -4401,7 +4451,7 @@ if HAS_CPU:
             x[0, 0] = torch.nan
             x[1, -1] = torch.nan
 
-            with patch.object(config.cpp, "simdlen", 8):
+            with patch.object(config.cpp, "simdlen", None):
                 torch._dynamo.reset()
                 metrics.reset()
                 traced = make_fx(fn)(x)
@@ -4414,7 +4464,7 @@ if HAS_CPU:
         # other platforms support, we just need to add the ISA info to the supported_vector_isa
         # and include proper aten vectorization head file.
         @unittest.skipIf(
-            not codecache.get_cpu_proc_info(), "Does not support vectorization"
+            not codecache.valid_vec_isa(), "Does not support vectorization"
         )
         @patch("torch.cuda.is_available", lambda: False)
         def test_vec_kernel_cpu_only(self):
@@ -4453,7 +4503,15 @@ if HAS_CPU:
             x1 = torch.randn((10, 20))
             x2 = torch.randn((10, 20))
 
-            with patch.object(config.cpp, "simdlen", 8):
+            with patch.object(config.cpp, "simdlen", 1):
+                torch._dynamo.reset()
+                metrics.reset()
+                traced = make_fx(fn)(x1, x2)
+                compiled = compile_fx_inner(traced, [x1, x2])
+                assert same(fn(x1, x2)[0], compiled([x1, x2])[0], equal_nan=True)
+                assert metrics.generated_cpp_vec_kernel_count == 0
+
+            with patch.object(config.cpp, "simdlen", None):
                 torch._dynamo.reset()
                 metrics.reset()
                 traced = make_fx(fn)(x1, x2)
