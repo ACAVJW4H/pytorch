@@ -21,7 +21,7 @@ def define_targets(rules):
         target_compatible_with = rules.requires_cuda_enabled(),
     )
 
-    for src in tests:
+    for src in dsa_tests:
         name = src.replace("impl/", "").replace(".cu", "")
         rules.cuda_library(
             name = "test_" + name + "_lib",
