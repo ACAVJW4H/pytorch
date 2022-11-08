@@ -807,7 +807,7 @@ class ReproTests(torch._dynamo.test_case.TestCase):
         self.assertGreaterEqual(torch._dynamo.utils.counters["frames"]["ok"], 3)
         self.assertEqual(
             torch._dynamo.utils.counters["frames"]["total"],
-            torch._dynamo.utils.counters["frames"]["ok"],
+            torch._dynamo.utils.counters["frames"]["ok"] + 1,
         )
 
     @patch.object(torch._dynamo.config, "fake_tensor_propagation", True)
@@ -1302,6 +1302,7 @@ class ReproTests(torch._dynamo.test_case.TestCase):
         self.assertGreaterEqual(torch._dynamo.utils.counters["frames"]["ok"], 3)
         self.assertGreaterEqual(torch._dynamo.utils.counters["frames"]["total"], 3)
 
+    @patch.object(torch._dynamo.config, "suppress_errors", True)
     def test_guard_fail_tensor_bool(self):
         @torch._dynamo.skip
         def fn():
@@ -1389,6 +1390,16 @@ class ReproTests(torch._dynamo.test_case.TestCase):
 
     @unittest.skipIf(not HAS_REFS, "requires recent PT version")
     def test_primtorch(self):
+        @torch._dynamo.optimize("eager")
+        def fn(x):
+            torch._refs.abs(x)
+
+        fn(torch.randn(3))
+
+    @unittest.skipIf(not HAS_REFS, "requires recent PT version")
+    @unittest.expectedFailure
+    # inline_call [('inline in skipfiles: bind ...python3.10/inspect.py', 1)]
+    def test_primtorch_no_graph_break(self):
         @torch._dynamo.optimize("eager", nopython=True)
         def fn(x):
             torch._refs.abs(x)

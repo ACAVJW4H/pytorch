@@ -97,12 +97,14 @@ skipfiles_inline_module_allowlist = {
     torch.distributions,
     torch.testing,
     torch.ao.nn,
+    torch.storage,
 }
 if HAS_REFS_PRIMS:
     skipfiles_inline_module_allowlist |= {
         torch._refs,
         torch._prims,
         torch._decomp,
+        torch._prims_common,
     }
 
 # If a string representing a PyTorch module is in this ignorelist,

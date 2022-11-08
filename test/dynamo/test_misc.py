@@ -1146,6 +1146,7 @@ class MiscTests(torch._dynamo.test_case.TestCase):
         torch._dynamo.run()(fn2)(torch.randn(4))
         self.assertEqual(cnts2.frame_count, 0)
 
+    @patch.object(torch._dynamo.config, "suppress_errors", True)
     def test_nested_disable_decorator(self):
         cnts = torch._dynamo.testing.CompileCounter()
 
@@ -1972,7 +1973,7 @@ class MiscTests(torch._dynamo.test_case.TestCase):
             return a + b / (a - b)
 
         self.assertRaises(
-            torch._dynamo.exc.BackendCompilerFailed,
+            torch._dynamo.exc.InternalTorchDynamoError,
             lambda: fn(torch.randn(10), torch.randn(10)),
         )
 

@@ -452,6 +452,7 @@ def _compile(
         AssertionError,
     ) as e:
         exception_handler(e, code, frame)
+        raise
     except Exception as e:
         exception_handler(e, code, frame)
         raise InternalTorchDynamoError() from e
