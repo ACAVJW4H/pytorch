@@ -25,6 +25,7 @@ rules = struct(
     cc_library = cc_library,
     cc_test = cc_test,
     cmake_configure_file = cmake_configure_file,
+    cuda_library = cuda_library,
     filegroup = native.filegroup,
     genrule = _genrule,
     glob = native.glob,
