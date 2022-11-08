@@ -273,6 +273,7 @@ RUN_PARALLEL_BLOCKLIST = [
 ] + FSDP_TEST
 
 CI_SERIAL_LIST = [
+    'mobile/test_lite_script_type.py',
     'test_nn',
     'test_fake_tensor',
     'test_cpp_api_parity',
