@@ -8,7 +8,7 @@ namespace cuda {
 
 #ifdef TORCH_USE_CUDA_DSA
 // Copy string from `src` to `dst`
-static __device__ void dstrcpy(char* const dst, const char* const src) {
+static __device__ void dstrcpy(char* dst, const char* src) {
   int i = 0;
   // Copy string from source to destination, ensuring that it
   // isn't longer than `C10_CUDA_DSA_MAX_STR_LEN-1`
