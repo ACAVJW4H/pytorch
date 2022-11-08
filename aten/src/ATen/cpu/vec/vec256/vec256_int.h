@@ -1133,6 +1133,117 @@ inline Vectorized<int8_t> Vectorized<int8_t>::le(const Vectorized<int8_t>& other
   return (*this <= other) & Vectorized<int8_t>(1);
 }
 
+template <>
+Vectorized<int64_t> inline operator<<(const Vectorized<int64_t>& a, const Vectorized<int64_t>& b) {
+  return _mm256_sllv_epi64(a, b);
+}
+
+template <>
+Vectorized<int32_t> inline operator<<(const Vectorized<int32_t>& a, const Vectorized<int32_t>& b) {
+  return _mm256_sllv_epi32(a, b);
+}
+
+template <>
+Vectorized<int16_t> inline operator<<(const Vectorized<int16_t>& a, const Vectorized<int16_t>& b) {
+  // No vector instruction for shifting int16_t, so emulating it instead.
+
+  // Mask used to set upper 16 bits of each 32-bit value to 0, and
+  // keep lower 16 bits.
+  __m256i mask = _mm256_set1_epi32(0xFFFF);
+
+  // Convert 16-bit operands from lane #0 to 32-bit values, and
+  // perform vectorized shift.  Make sure that upper 24 bits of 32-bit
+  // results are all 0.
+  __m128i a_lo_16 = _mm256_extracti128_si256(a, 0);
+  __m128i b_lo_16 = _mm256_extracti128_si256(b, 0);
+  __m256i a_lo_32 = _mm256_cvtepi16_epi32(a_lo_16);
+  __m256i b_lo_32 = _mm256_cvtepi16_epi32(b_lo_16);
+  __m256i c_lo_32 = _mm256_and_si256(_mm256_sllv_epi32(a_lo_32, b_lo_32), mask);
+
+  // Convert 16-bit operands from lane #1 to 32-bit values, and
+  // perform vectorized shift.  Make sure that upper 24 bits of 32-bit
+  // results are all 0.
+  __m128i a_hi_16 = _mm256_extracti128_si256(a, 1);
+  __m128i b_hi_16 = _mm256_extracti128_si256(b, 1);
+  __m256i a_hi_32 = _mm256_cvtepi16_epi32(a_hi_16);
+  __m256i b_hi_32 = _mm256_cvtepi16_epi32(b_hi_16);
+  __m256i c_hi_32 = _mm256_and_si256(_mm256_sllv_epi32(a_hi_32, b_hi_32), mask);
+
+  // Cast 32-bit results back into 16-bit values and merge them
+  // together (using unsigned saturation with higher 16 bits set to 0
+  // above ensures that results are correct).  Values from low lane
+  // are merged into the low lane of the resulting value, and alike
+  // for values from high lane, so this is not yet the final result.
+  __m256i c_perm = _mm256_packus_epi32(c_lo_32, c_hi_32);
+
+  // Permute values so that final result is produced.
+  __m256i c = _mm256_permute4x64_epi64(c_perm, 0b11'01'10'00);
+
+  return c;
+}
+
+template <>
+Vectorized<int8_t> inline operator<<(const Vectorized<int8_t>& a, const Vectorized<int8_t>& b) {
+  // No vector instruction for shifting int8_t, so emulating it instead.
+
+  // Auxiliary function to perform shifting of values from lower half
+  // of each lane, and return resuls as 16-bit values.
+  auto shift_lanes_lower_halves = [](const Vectorized<int8_t>& a, const Vectorized<int8_t>& b) -> __m256i {
+    // Mask used to set upper 24 bits of each 32-bit value to 0, and
+    // keep lower 8 bits.
+    __m256i mask = _mm256_set1_epi32(0xFF);
+
+    // Convert lower 8 of 8-bit operands from lane #0 to 32-bit
+    // values, and perform vectorized shift.  Make sure that upper 24
+    // bits of 32-bit results are all 0.
+    __m128i a_lo_8 = _mm256_extracti128_si256(a, 0);
+    __m128i b_lo_8 = _mm256_extracti128_si256(b, 0);
+    __m256i a_lo_32 = _mm256_cvtepi8_epi32(a_lo_8);
+    __m256i b_lo_32 = _mm256_cvtepi8_epi32(b_lo_8);
+    __m256i c_lo_32 = _mm256_and_si256(_mm256_sllv_epi32(a_lo_32, b_lo_32), mask);
+
+    // Convert lower 8 of 8-bit operands from lane #1 to 32-bit
+    // values, and perform vectorized shift.  Make sure that upper 24
+    // bits of 32-bit results are all 0.
+    __m128i a_hi_8 = _mm256_extracti128_si256(a, 1);
+    __m128i b_hi_8 = _mm256_extracti128_si256(b, 1);
+    __m256i a_hi_32 = _mm256_cvtepi8_epi32(a_hi_8);
+    __m256i b_hi_32 = _mm256_cvtepi8_epi32(b_hi_8);
+    __m256i c_hi_32 = _mm256_and_si256(_mm256_sllv_epi32(a_hi_32, b_hi_32), mask);
+
+    // Cast 32-bit results back into 16-bit values and merge them
+    // together (using unsigned saturation with higher 24 bits set to
+    // 0 above ensures that correct 8-bit results are actually
+    // produced).  Values from low lane are merged into the low lane
+    // of the resulting value, and alike for values from high lane, so
+    // this is not yet the final result.
+    __m256i c_perm = _mm256_packus_epi32(c_lo_32, c_hi_32);
+
+    // Permute values so that final result is produced.
+    __m256i c = _mm256_permute4x64_epi64(c_perm, 0b11'01'10'00);
+
+    return c;
+  };
+
+  // Calculate result values for lower halves of each lane.
+  __m256i c_lo_16 = shift_lanes_lower_halves(a, b);
+
+  // Swap lower and upper half of each lane, and then calculate result
+  // values for upper halves of each lane.
+  __m256i a_perm = _mm256_permute4x64_epi64(a, 0b10'11'00'01);
+  __m256i b_perm = _mm256_permute4x64_epi64(b, 0b10'11'00'01);
+  __m256i c_hi_16 = shift_lanes_lower_halves(a_perm, b_perm);
+
+  // Cast 16-bit results back into 8-bit values and merge them
+  // together (again, using unsigned saturation with higher 24 bits
+  // set to 0 in the auxiliary function above ensures that results are
+  // correct).  Resulting values here are actually in the correct
+  // order for the merge, so no additional permuation is needed.
+  __m256i c = _mm256_packus_epi16(c_lo_16, c_hi_16);
+
+  return c;
+}
+
 #endif
 
 }}}

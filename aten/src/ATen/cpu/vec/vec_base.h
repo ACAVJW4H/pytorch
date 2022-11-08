@@ -799,6 +799,13 @@ inline Vectorized<T> operator~(const Vectorized<T>& a) {
   return a ^ ones;
 }
 
+template <class T> Vectorized<T> inline operator<<(const Vectorized<T> &a, const Vectorized<T> &b) {
+  Vectorized<T> c;
+  for (int i = 0; i != Vectorized<T>::size(); i++) {
+    c[i] = a[i] << b[i];
+  }
+  return c;
+}
 
 template <typename T>
 inline Vectorized<T>& operator += (Vectorized<T>& a, const Vectorized<T>& b) {

@@ -1163,6 +1163,60 @@ inline Vectorized<int8_t> Vectorized<int8_t>::le(const Vectorized<int8_t>& other
   return (*this <= other) & Vectorized<int8_t>(1);
 }
 
+template <>
+Vectorized<int64_t> inline operator<<(const Vectorized<int64_t>& a, const Vectorized<int64_t>& b) {
+  return _mm512_sllv_epi64(a, b);
+}
+
+template <>
+Vectorized<int32_t> inline operator<<(const Vectorized<int32_t>& a, const Vectorized<int32_t>& b) {
+  return _mm512_sllv_epi32(a, b);
+}
+
+template <>
+Vectorized<int16_t> inline operator<<(const Vectorized<int16_t>& a, const Vectorized<int16_t>& b) {
+  return _mm512_sllv_epi16(a, b);
+}
+
+template <>
+Vectorized<int8_t> inline operator<<(const Vectorized<int8_t>& a, const Vectorized<int8_t>& b) {
+  // No vector instruction for shifting int8_t, so emulating it instead.
+
+  // Mask used to set upper 8 bits of each 16-bit value to 0, and keep
+  // lower 8 bits.
+  __m512i mask = _mm512_set1_epi16(0xFF);
+
+  // Convert 8-bit operands from lower lanes to 16-bit values, and
+  // perform vectorized shift.  Make sure that upper 8 bits of 16-bit
+  // results are all 0.
+  __m256i a_lo_8 = _mm512_extracti64x4_epi64(a, 0);
+  __m256i b_lo_8 = _mm512_extracti64x4_epi64(b, 0);
+  __m512i a_lo_16 = _mm512_cvtepi8_epi16(a_lo_8);
+  __m512i b_lo_16 = _mm512_cvtepi8_epi16(b_lo_8);
+  __m512i c_lo_16 = _mm512_and_si512(_mm512_sllv_epi16(a_lo_16, b_lo_16), mask);
+
+  // Convert 8-bit operands from upper lanes to 16-bit values, and
+  // perform vectorized shift.  Make sure that upper 8 bits of 16-bit
+  // results are all 0.
+  __m256i a_hi_8 = _mm512_extracti64x4_epi64(a, 1);
+  __m256i b_hi_8 = _mm512_extracti64x4_epi64(b, 1);
+  __m512i a_hi_16 = _mm512_cvtepi8_epi16(a_hi_8);
+  __m512i b_hi_16 = _mm512_cvtepi8_epi16(b_hi_8);
+  __m512i c_hi_16 = _mm512_and_si512(_mm512_sllv_epi16(a_hi_16, b_hi_16), mask);
+
+  // Cast 16-bit results back into 8-bit values and merge them
+  // together (using unsigned saturation with higher 8 bits set to 0
+  // above ensures that results are correct).  Values are merged per
+  // lanes, so this is not yet the final result.
+  __m512i c_perm = _mm512_packus_epi16(c_lo_16, c_hi_16);
+
+  // Permute values so that final result is produced.
+  __m512i idx = _mm512_set_epi64(7, 5, 3, 1, 6, 4, 2, 0);
+  __m512i c = _mm512_permutexvar_epi64(idx, c_perm);
+
+  return c;
+}
+
 #endif
 
 }}}
